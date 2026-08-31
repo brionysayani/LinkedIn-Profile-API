@@ -1,11 +1,19 @@
 services:
   - type: web
     name: linkedin-profile-api
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
     envVars:
-      - key: LINKEDIN_LI_AT
+      - key: LI_AT
         sync: false
-      - key: LINKEDIN_JSESSIONID
+      - key: JSESSIONID
         sync: false
+      - key: USER_AGENT
+        sync: false
+      - key: CACHE_TTL_SECONDS
+        value: "3600"
+      - key: RATE_LIMIT
+        value: "30/minute"
+      - key: LOG_LEVEL
+        value: INFO

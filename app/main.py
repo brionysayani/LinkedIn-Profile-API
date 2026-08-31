@@ -1,43 +1,97 @@
-from pathlib import Path
+import logging
+from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
-from app.linkedin import (
-    InvalidLinkedInSession,
-    InvalidLinkedInURL,
-    LinkedInClient,
-    LinkedInRequestFailed,
-    ProfileNotFound,
+from app.api.routes import limiter, router
+from app.config import get_settings
+from app.core.errors import (
+    ForbiddenError,
+    InvalidURLError,
+    LinkedInProfileAPIError,
+    ProfileNotFoundError,
+    RateLimitError,
+    UnauthorizedError,
+    UpstreamError,
 )
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 
-class ProfileRequest(BaseModel):
-    url: str
+def _error_response(status: int, error: str, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        content={"error": error, "detail": detail, "status": status},
+    )
 
 
-app = FastAPI(title="LinkedIn Profile API", version="1.0.0")
-PUBLIC_DIR = Path(__file__).parent.parent / "public"
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    logging.basicConfig(level=settings.log_level)
+    logger.info("LinkedIn Profile API starting")
+    yield
+    logger.info("LinkedIn Profile API shutting down")
 
 
-@app.get("/", include_in_schema=False)
-async def home() -> FileResponse:
-    return FileResponse(PUBLIC_DIR / "index.html")
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="LinkedIn Profile API",
+        description="Extract structured LinkedIn profile data via the Voyager API",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.exception_handler(InvalidURLError)
+    async def invalid_url_handler(_: Request, exc: InvalidURLError) -> JSONResponse:
+        return _error_response(400, "invalid_url", exc.detail)
+
+    @app.exception_handler(UnauthorizedError)
+    async def unauthorized_handler(_: Request, exc: UnauthorizedError) -> JSONResponse:
+        return _error_response(401, "unauthorized", exc.detail)
+
+    @app.exception_handler(ForbiddenError)
+    async def forbidden_handler(_: Request, exc: ForbiddenError) -> JSONResponse:
+        return _error_response(403, "forbidden", exc.detail)
+
+    @app.exception_handler(ProfileNotFoundError)
+    async def not_found_handler(_: Request, exc: ProfileNotFoundError) -> JSONResponse:
+        return _error_response(404, "not_found", exc.detail)
+
+    @app.exception_handler(RateLimitError)
+    async def rate_limit_handler(_: Request, exc: RateLimitError) -> JSONResponse:
+        return _error_response(429, "rate_limit_exceeded", exc.detail)
+
+    @app.exception_handler(UpstreamError)
+    async def upstream_handler(_: Request, exc: UpstreamError) -> JSONResponse:
+        return _error_response(502, "upstream_error", exc.detail)
+
+    @app.exception_handler(LinkedInProfileAPIError)
+    async def generic_handler(_: Request, exc: LinkedInProfileAPIError) -> JSONResponse:
+        return _error_response(500, "internal_error", exc.detail)
+
+    @app.get("/health", tags=["health"])
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    app.include_router(router)
+    return app
 
 
-@app.post("/profile")
-async def profile(request: ProfileRequest):
-    try:
-        return await LinkedInClient().get_profile(request.url)
-    except InvalidLinkedInURL as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except ProfileNotFound as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except InvalidLinkedInSession as exc:
-        raise HTTPException(status_code=401, detail=str(exc)) from exc
-    except LinkedInRequestFailed as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+app = create_app()
