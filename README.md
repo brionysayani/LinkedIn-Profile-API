@@ -50,7 +50,7 @@ Credentials remain on the reviewer's machine and are never sent to the public de
 GET example:
 
 ```bash
-curl "https://linked-in-profile-api.vercel.app/api/profile?url=https://www.linkedin.com/in/shreyan-bagchi/"
+curl "https://linked-in-profile-api.vercel.app/api/profile?url=https://www.linkedin.com/in/briony-sayani/"
 ```
 
 POST example:
@@ -58,7 +58,7 @@ POST example:
 ```bash
 curl -X POST "https://linked-in-profile-api.vercel.app/api/profile" \
   -H "Content-Type: application/json" \
-  -d '{"url":"shreyan-bagchi"}'
+  -d '{"url":"https://www.linkedin.com/in/briony-sayani/"}'
 ```
 
 Accepted inputs:
