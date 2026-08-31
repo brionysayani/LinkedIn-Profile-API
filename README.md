@@ -58,11 +58,11 @@ Example response:
 
 ## Approach
 
-The service extracts the `/in/<profile-id>` identifier, calls LinkedIn's internal authenticated `identity/profiles/{profile-id}/profileView` Voyager endpoint with the `li_at` and `JSESSIONID` cookies, then normalizes its returned profile and included entities into a stable response shape. Invalid URLs return `422`; missing or inaccessible profiles return `404`; rejected credentials return `401`; upstream/network failures return `502`.
+The service extracts the `/in/<profile-id>` identifier and passes it to LinkedIn's internal authenticated Voyager profile endpoint. It tries the current Dash profile API first and falls back to the legacy profile-view endpoint when necessary, then normalizes the returned profile and included entities into a stable response shape. The identifier comes from each submitted URL, so the API is not limited to the profile that owns the configured session. Invalid URLs return `422`; missing or inaccessible profiles return `404`; rejected or redirected sessions return `401`; upstream/network failures return `502`.
 
 ## Known limitations
 
 - LinkedIn's internal endpoints and response shape are undocumented and can change without notice.
 - Results are limited to what the supplied account can view. Private or restricted profiles may return 404.
-- Session cookies expire and must be refreshed manually.
+- Session cookies expire and must be refreshed manually. LinkedIn may also redirect a session to sign-in or a checkpoint, especially when requests originate from a new or changing server IP.
 - Use only in accordance with LinkedIn's terms, applicable law, and the permission of the people whose data you access.

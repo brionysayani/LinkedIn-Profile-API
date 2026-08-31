@@ -33,6 +33,10 @@ class LinkedInRequestFailed(LinkedInError):
 PROFILE_URL_PATTERN = re.compile(r"^/in/([^/?#]+)/?$")
 VOYAGER_BASE_URL = "https://www.linkedin.com/voyager/api"
 PROFILE_DECORATION = "com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-101"
+AUTH_REDIRECT_MESSAGE = (
+    "LinkedIn redirected the request to sign-in or a checkpoint. "
+    "Refresh LINKEDIN_LI_AT and LINKEDIN_JSESSIONID."
+)
 
 
 def extract_profile_identifier(profile_url: str) -> str:
@@ -221,9 +225,16 @@ class LinkedInClient:
         csrf_token = self.jsessionid.strip('"')
         headers = {
             "accept": "application/vnd.linkedin.normalized+json+2.1",
+            "accept-language": "en-US,en;q=0.9",
             "csrf-token": csrf_token,
+            "referer": f"https://www.linkedin.com/in/{identifier}/",
+            "x-li-lang": "en_US",
             "x-restli-protocol-version": "2.0.0",
-            "user-agent": "Mozilla/5.0",
+            "user-agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
         }
         cookies = {"li_at": self.li_at, "JSESSIONID": self.jsessionid}
         dash_endpoint = f"{VOYAGER_BASE_URL}/identity/dash/profiles"
@@ -238,17 +249,20 @@ class LinkedInClient:
             async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
                 response = await client.get(dash_endpoint, params=params, headers=headers, cookies=cookies)
                 # Keep the old endpoint only for LinkedIn accounts that have not
-                # yet migrated to the Dash profile API.
-                if response.status_code == 410:
+                # yet migrated to the Dash profile API, or profiles that are not
+                # exposed through the account's current Dash experiment.
+                if response.status_code in {404, 410}:
                     response = await client.get(legacy_endpoint, headers=headers, cookies=cookies)
         except httpx.RequestError as exc:
             raise LinkedInRequestFailed("Unable to reach LinkedIn.") from exc
 
+        if response.is_redirect:
+            raise InvalidLinkedInSession(AUTH_REDIRECT_MESSAGE)
         if response.status_code in {401, 403}:
             raise InvalidLinkedInSession("LinkedIn rejected the supplied session credentials.")
         if response.status_code == 404:
             raise ProfileNotFound("LinkedIn profile was not found or is not visible to this account.")
-        if response.is_redirect or response.status_code >= 400:
+        if response.status_code >= 400:
             raise LinkedInRequestFailed(f"LinkedIn request failed with status {response.status_code}.")
         try:
             payload = response.json()
