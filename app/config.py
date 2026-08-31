@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,8 +11,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    li_at: str | None = Field(default=None, alias="LI_AT")
-    jsessionid: str | None = Field(default=None, alias="JSESSIONID")
+    li_at: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LI_AT", "LINKEDIN_LI_AT"),
+    )
+    jsessionid: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("JSESSIONID", "LINKEDIN_JSESSIONID"),
+    )
     user_agent: str | None = Field(default=None, alias="USER_AGENT")
 
     cache_ttl_seconds: int = Field(default=3600, alias="CACHE_TTL_SECONDS")

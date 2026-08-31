@@ -1,5 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,8 @@ from app.core.errors import (
 )
 
 logger = logging.getLogger(__name__)
+ROOT_DIR = Path(__file__).resolve().parents[1]
+WEB_DIR = ROOT_DIR / "web"
 
 
 def _error_response(status: int, error: str, detail: str) -> JSONResponse:
@@ -97,7 +100,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(router)
-    app.mount("/", StaticFiles(directory="web", html=True), name="web")
+    app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
     return app
 
 
