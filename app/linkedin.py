@@ -32,6 +32,7 @@ class LinkedInRequestFailed(LinkedInError):
 
 PROFILE_URL_PATTERN = re.compile(r"^/in/([^/?#]+)/?$")
 VOYAGER_BASE_URL = "https://www.linkedin.com/voyager/api"
+PROFILE_DECORATION = "com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-101"
 
 
 def extract_profile_identifier(profile_url: str) -> str:
@@ -225,11 +226,21 @@ class LinkedInClient:
             "user-agent": "Mozilla/5.0",
         }
         cookies = {"li_at": self.li_at, "JSESSIONID": self.jsessionid}
-        endpoint = f"{VOYAGER_BASE_URL}/identity/profiles/{identifier}/profileView"
+        dash_endpoint = f"{VOYAGER_BASE_URL}/identity/dash/profiles"
+        legacy_endpoint = f"{VOYAGER_BASE_URL}/identity/profiles/{identifier}/profileView"
+        params = {
+            "q": "memberIdentity",
+            "memberIdentity": identifier,
+            "decorationId": PROFILE_DECORATION,
+        }
 
         try:
             async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
-                response = await client.get(endpoint, headers=headers, cookies=cookies)
+                response = await client.get(dash_endpoint, params=params, headers=headers, cookies=cookies)
+                # Keep the old endpoint only for LinkedIn accounts that have not
+                # yet migrated to the Dash profile API.
+                if response.status_code == 410:
+                    response = await client.get(legacy_endpoint, headers=headers, cookies=cookies)
         except httpx.RequestError as exc:
             raise LinkedInRequestFailed("Unable to reach LinkedIn.") from exc
 
