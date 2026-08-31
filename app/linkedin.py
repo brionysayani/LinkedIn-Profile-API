@@ -107,30 +107,48 @@ def _as_list(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
 
+def _flatten_positions(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return individual positions when Voyager returns grouped positions."""
+    positions: list[dict[str, Any]] = []
+    for group in groups:
+        nested = _as_list(group.get("profilePositionInPositionGroup")) or _as_list(group.get("positions"))
+        if nested:
+            positions.extend(nested)
+        else:
+            positions.append(group)
+    return positions
+
+
 def normalize_profile(payload: dict[str, Any]) -> dict[str, Any]:
     """Normalize Voyager profileView JSON into a stable, documented shape."""
-    profile = payload.get("profile") if isinstance(payload.get("profile"), dict) else payload
-    included = _as_list(payload.get("included"))
+    # The endpoint can return its body directly or within a `data` object.
+    body = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    included = [*_as_list(payload.get("included")), *_as_list(body.get("included"))]
+    profile = body.get("profile") if isinstance(body.get("profile"), dict) else next(
+        (item for item in included if "firstName" in item and "Profile" in str(item.get("$type", ""))),
+        body,
+    )
 
     # Profile-view responses vary by account and LinkedIn experiment. Merge the
     # top-level collections with included entities and use their $type when present.
     all_entities = [*included]
     for key in ("positionGroup", "education", "skill", "certification", "language"):
-        all_entities.extend(_as_list(payload.get(key)))
+        all_entities.extend(_as_list(body.get(key)))
 
-    positions = _as_list(payload.get("positionGroup")) or [
+    position_groups = _as_list(body.get("positionGroup")) or [
         item for item in all_entities if "Position" in str(item.get("$type", ""))
     ]
-    education = _as_list(payload.get("education")) or [
+    positions = _flatten_positions(position_groups)
+    education = _as_list(body.get("education")) or [
         item for item in all_entities if "Education" in str(item.get("$type", ""))
     ]
-    skills = _as_list(payload.get("skill")) or [
+    skills = _as_list(body.get("skill")) or [
         item for item in all_entities if "Skill" in str(item.get("$type", ""))
     ]
-    certifications = _as_list(payload.get("certification")) or [
+    certifications = _as_list(body.get("certification")) or [
         item for item in all_entities if "Certification" in str(item.get("$type", ""))
     ]
-    languages = _as_list(payload.get("language")) or [
+    languages = _as_list(body.get("language")) or [
         item for item in all_entities if "Language" in str(item.get("$type", ""))
     ]
 
@@ -140,7 +158,9 @@ def normalize_profile(payload: dict[str, Any]) -> dict[str, Any]:
         "headline": _first_string(profile.get("headline")),
         "location": _first_string(profile.get("locationName"), profile.get("geoLocationName")),
         "about": _first_string(profile.get("summary"), profile.get("about")),
-        "profile_image": _image_url(profile.get("profilePicture") or profile.get("picture")),
+        "profile_image": _image_url(
+            profile.get("profilePicture") or profile.get("picture") or profile.get("displayPictureUrl")
+        ),
         "experience": [
             {
                 "title": _first_string(item.get("title")),
