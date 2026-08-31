@@ -3,90 +3,83 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![Docker](https://img.shields.io/badge/docker-ready-2496ED.svg)](./Dockerfile)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](#quickstart)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](#testing)
 
-**Zero headless browsers.** Structured profile JSON from LinkedIn’s internal Voyager REST API over HTTPS.
+Fetch structured LinkedIn profile data through LinkedIn's authenticated Voyager REST API - no browser automation or DOM scraping.
 
-| | |
-|---|---|
-| **Live API Docs** | [https://linkedin-profile-api-bsa2.onrender.com/docs](https://linkedin-profile-api-bsa2.onrender.com/docs) |
-| **Live Web Demo** | [https://linked-in-profile-api-livid.vercel.app/](https://linked-in-profile-api-livid.vercel.app/) |
-| **Health** | [https://linkedin-profile-api-bsa2.onrender.com/health](https://linkedin-profile-api-bsa2.onrender.com/health) |
+| Resource | URL |
+| --- | --- |
+| Web demo | [linked-in-profile-api-livid.vercel.app](https://linked-in-profile-api-livid.vercel.app/) |
+| Interactive API docs | [linkedin-profile-api-bsa2.onrender.com/docs](https://linkedin-profile-api-bsa2.onrender.com/docs) |
+| Health check | [linkedin-profile-api-bsa2.onrender.com/health](https://linkedin-profile-api-bsa2.onrender.com/health) |
 
-Warm-up (Render free tier may cold-start ~30–60s):
+The Render free tier may need 30-60 seconds to wake up. Warm it before testing:
 
 ```bash
 curl https://linkedin-profile-api-bsa2.onrender.com/health
 # {"status":"ok"}
 ```
 
-<p align="center">
-  <img src="assets/demo-ui.png" alt="Web Demo UI" width="900" />
-</p>
+## Reviewer quick start
 
----
+1. Open the [web demo](https://linked-in-profile-api-livid.vercel.app/).
+2. Paste a LinkedIn profile URL or vanity slug.
+3. Select **Fetch profile** to render the normalized result.
 
-## Notice for Reviewers — Session Expiry & 60s Fallback
+The hosted API uses server-side `LI_AT` and `JSESSIONID` credentials. LinkedIn can invalidate a session because of expiry, logout, or an IP change. If the hosted API returns `401 Unauthorized`, [run the API locally](#run-locally) with your own session values; no source changes or Vercel redeploy are needed.
 
-The hosted Render instance is pre-configured with `LI_AT` + `JSESSIONID`. LinkedIn sessions can invalidate at any time (expiry, IP shift, logout).
+Then point the deployed UI to the local API:
 
-**If the live API returns `401 Unauthorized`:**
-
-1. Extract your own `li_at` and `JSESSIONID` (30s — see [Quickstart](#quickstart)).
-2. Run locally:
-
-```bash
-cp .env.example .env   # fill LI_AT, JSESSIONID, USER_AGENT
-pip install -r requirements.txt && uvicorn app.main:app --port 8000
-```
-
-3. Point the **deployed** Vercel UI at your local API:
-
-```
+```text
 https://linked-in-profile-api-livid.vercel.app/?api=http://localhost:8000
 ```
 
-No redeploy. No code changes. Review continues immediately.
+Credentials remain on the reviewer's machine and are never sent to the public demo API.
 
----
+## What it returns
 
-## Why Voyager REST
+- Identity, headline, About summary, location, and LinkedIn profile URL
+- High-resolution profile and cover image URLs
+- Experience and education, including normalized date ranges
+- Skills, certifications, languages, and featured/treasury media
+- A UTC `fetched_at` timestamp
+- Consistent HTTP error responses
 
-LinkedIn is migrating profile surfaces to **Server-Driven UI** (`/flagship-web/...` RSC Flight streams). Deep skills endpoints are dead (`/profileSkills` → 400, legacy `/skills` → 410). This service queries the consolidated Voyager decoration `FullProfileWithEntities-91` — one authenticated Rest.li call, full `included[]` entity graph, typically **&lt;300ms** — instead of parsing fragile UI trees.
+## API reference
 
-Auth is the Rest.li 2.0 double-submit cookie pattern: `li_at` cookie + raw `JSESSIONID` as the `csrf-token` header. The parser groups `included[]` by `$type` and resolves vector artifacts into high-res CDN URLs.
+### Fetch a profile
 
-| | Headless Browser | Direct Voyager REST |
-|---|---|---|
-| Approach | Playwright/Puppeteer render DOM | Authenticated `httpx` → Rest.li JSON |
-| Latency | Seconds (browser cold start) | Sub-300ms typical |
-| Fragility | CSS/DOM churn | `$type` entity schema (more stable) |
-| Challenge fit | Disallowed | Required approach |
-| Skills depth | Can paginate UI | First ~20 via Voyager; rest is SDUI-only |
-
----
-
-## API Reference
-
-| Method | Path | Body / Query |
-|--------|------|--------------|
-| `GET` | `/api/profile?url=` | LinkedIn URL or vanity slug |
+| Method | Endpoint | Input |
+| --- | --- | --- |
+| `GET` | `/api/profile?url={value}` | LinkedIn profile URL or vanity slug |
 | `POST` | `/api/profile` | `{"url": "https://www.linkedin.com/in/..."}` |
+
+GET example:
 
 ```bash
 curl "https://linkedin-profile-api-bsa2.onrender.com/api/profile?url=https://www.linkedin.com/in/shreyan-bagchi/"
 ```
 
-### Accepted input formats
+POST example:
 
-| Input Format | Extracted Slug |
-|:---|:---|
+```bash
+curl -X POST "https://linkedin-profile-api-bsa2.onrender.com/api/profile" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"shreyan-bagchi"}'
+```
+
+Accepted inputs:
+
+| Input | Normalized slug |
+| --- | --- |
 | `https://www.linkedin.com/in/shreyan-bagchi/` | `shreyan-bagchi` |
 | `in.linkedin.com/in/shreyan-bagchi?trk=feed` | `shreyan-bagchi` |
 | `linkedin.com/in/shreyan-bagchi` | `shreyan-bagchi` |
 | `shreyan-bagchi` | `shreyan-bagchi` |
 
-### Sample response (abridged from `response.json`)
+### Response
+
+Abridged example from `response.json`:
 
 ```json
 {
@@ -96,16 +89,25 @@ curl "https://linkedin-profile-api-bsa2.onrender.com/api/profile?url=https://www
   "summary": "Software Engineer with experience at Oracle...",
   "public_identifier": "shreyan-bagchi",
   "profile_url": "https://www.linkedin.com/in/shreyan-bagchi/",
-  "location": { "city": "Raurkela", "state": "Odisha", "country": "IN", "display": "Raurkela, Odisha, India" },
-  "profile_picture_url": "https://media.licdn.com/dms/image/v2/.../profile-displayphoto-crop_800_800/...",
-  "cover_picture_url": "https://media.licdn.com/dms/image/v2/.../profile-displaybackgroundimage-shrink_350_1400/...",
+  "location": {
+    "city": "Raurkela",
+    "state": "Odisha",
+    "country": "IN",
+    "display": "Raurkela, Odisha, India"
+  },
+  "profile_picture_url": "https://media.licdn.com/dms/image/v2/...",
+  "cover_picture_url": "https://media.licdn.com/dms/image/v2/...",
   "positions": [
     {
       "title": "Member of Technical Staff",
       "company_name": "Oracle",
       "location": "Bengaluru",
       "employment_type": "Full-time",
-      "date_range": { "start_year": 2025, "start_month": 7, "is_current": false }
+      "date_range": {
+        "start_year": 2025,
+        "start_month": 7,
+        "is_current": false
+      }
     }
   ],
   "educations": [
@@ -115,109 +117,194 @@ curl "https://linkedin-profile-api-bsa2.onrender.com/api/profile?url=https://www
       "field_of_study": "Electrical and Electronics Engineering"
     }
   ],
-  "skills": [{ "name": "Java" }, { "name": "Spring Boot" }, { "name": "PostgreSQL" }],
+  "skills": [
+    { "name": "Java" },
+    { "name": "Spring Boot" },
+    { "name": "PostgreSQL" }
+  ],
   "skills_total": 47,
   "treasury_media": [
-    { "title": "strike07 - Codeforces", "url": "https://codeforces.com/profile/strike07", "kind": "url" }
+    {
+      "title": "strike07 - Codeforces",
+      "url": "https://codeforces.com/profile/strike07",
+      "kind": "url"
+    }
   ],
   "fetched_at": "..."
 }
 ```
 
-Also returned when present: `certifications[]`, `languages[]`, `urn`.
+When available, the response also includes `urn`, `certifications[]`, and `languages[]`.
 
 ### Errors
 
-| HTTP | `error` | When |
-|------|---------|------|
-| 400 | `invalid_url` | Malformed / non-LinkedIn input |
-| 401 | `unauthorized` | Session cookies expired or invalid |
-| 403 | `forbidden` | LinkedIn denied access |
-| 404 | `not_found` | Profile does not exist |
-| 429 | `rate_limit_exceeded` | Upstream or API rate limit |
-| 502 | `upstream_error` | LinkedIn 5xx / network failure |
+All application errors use this shape:
 
-Shape: `{"error": "...", "detail": "...", "status": N}`
+```json
+{"error":"unauthorized","detail":"LinkedIn session expired or invalid","status":401}
+```
 
----
+| HTTP | Error code | Meaning |
+| --- | --- | --- |
+| `400` | `invalid_url` | The input is malformed or is not a LinkedIn profile URL/slug. |
+| `401` | `unauthorized` | The LinkedIn session is expired or invalid. |
+| `403` | `forbidden` | LinkedIn denied access to the profile. |
+| `404` | `not_found` | The profile does not exist or is unavailable. |
+| `429` | `rate_limit_exceeded` | The API or LinkedIn rate limit was reached. |
+| `502` | `upstream_error` | LinkedIn returned a server or network error. |
 
-## Quickstart
+### Health check
 
-### Cookies (≈30s)
+```http
+GET /health
+```
 
-1. Log in at [linkedin.com](https://www.linkedin.com).
-2. DevTools → **Application** → **Cookies** → `https://www.linkedin.com`.
-3. Copy `li_at` and `JSESSIONID` (strip surrounding quotes from the latter when placing in `.env`).
-4. Copy your browser `User-Agent` from any Network request header.
+```json
+{"status":"ok"}
+```
 
-### Local (4 lines)
+## Run locally
+
+### 1. Get LinkedIn session values
+
+1. Sign in at [linkedin.com](https://www.linkedin.com/).
+2. Open DevTools, then **Application > Cookies > https://www.linkedin.com**.
+3. Copy `li_at` and `JSESSIONID`. Remove the surrounding quotes from `JSESSIONID` when adding it to `.env`.
+4. Copy your browser's `User-Agent` value from a request in the Network panel.
+
+Never commit these credentials.
+
+### 2. Install and configure
+
+Python 3.12 or newer is required.
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # set LI_AT, JSESSIONID, USER_AGENT
+python -m venv .venv
+```
+
+Activate the environment:
+
+```bash
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
+
+Install dependencies and create the local environment file:
+
+```bash
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+On Windows PowerShell, use `Copy-Item .env.example .env` instead of `cp` if needed. Fill in the three required values:
+
+```dotenv
+LI_AT=your_li_at_cookie_here
+JSESSIONID=your_jsessionid_here
+USER_AGENT=Mozilla/5.0 ...
+```
+
+### 3. Start the API
+
+```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-Swagger: [http://localhost:8000/docs](http://localhost:8000/docs)
+Open [http://localhost:8000/docs](http://localhost:8000/docs) for Swagger UI.
 
 ### Docker
 
 ```bash
 docker build -t linkedin-profile-api .
 docker run -p 8000:8000 \
-  -e LI_AT=... -e JSESSIONID=... -e USER_AGENT="Mozilla/5.0 ..." \
+  -e LI_AT=... \
+  -e JSESSIONID=... \
+  -e USER_AGENT="Mozilla/5.0 ..." \
   linkedin-profile-api
 ```
 
-### Tests
+## Configuration
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `LI_AT` | Yes | - | Authenticated LinkedIn session cookie |
+| `JSESSIONID` | Yes | - | Session value used for the cookie and CSRF header |
+| `USER_AGENT` | Yes | - | Browser user-agent string |
+| `CACHE_TTL_SECONDS` | No | `3600` | In-memory profile cache lifetime |
+| `RATE_LIMIT` | No | `10/minute` | Per-IP API rate limit |
+| `LOG_LEVEL` | No | `INFO` | Application logging level |
+
+## Architecture
+
+```text
+Client
+  -> GET/POST /api/profile
+  -> URL normalizer
+  -> in-memory TTL cache
+  -> async Voyager client (Rest.li 2.0, retries)
+  -> included[] entity parser
+  -> validated ProfileResponse
+```
+
+| Component | Responsibility |
+| --- | --- |
+| `url_normalizer` | Accept full LinkedIn URLs and vanity slugs, then validate and normalize them. |
+| `voyager_client` | Send authenticated async requests with Rest.li headers and retry transient upstream failures. |
+| `profile_parser` | Group `included[]` entities by `$type` and resolve vector artifacts to CDN image URLs. |
+| `profile_service` | Coordinate normalization, caching, fetching, skills enrichment, and parsing. |
+
+The primary upstream request is:
+
+```http
+GET /voyager/api/identity/dash/profiles
+  ?q=memberIdentity
+  &memberIdentity={slug}
+  &decorationId=com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-91
+```
+
+Authentication follows LinkedIn's Rest.li double-submit cookie pattern: the `li_at` cookie authenticates the session, while the raw `JSESSIONID` value is sent as the `csrf-token` header.
+
+## Why Voyager REST
+
+LinkedIn's newer `/flagship-web/...` profile surfaces use Server-Driven UI/RSC Flight streams, which makes UI-tree parsing brittle. This service instead consumes the normalized entity graph returned by Voyager's `FullProfileWithEntities-91` decoration.
+
+| | Headless browser | Direct Voyager REST |
+| --- | --- | --- |
+| Transport | Rendered DOM via Playwright/Puppeteer | Authenticated JSON over `httpx` |
+| Typical latency | Browser startup plus page rendering | Usually under 300 ms for the core request |
+| Main coupling | CSS selectors and DOM structure | `$type` entity schema and decoration ID |
+| Challenge fit | Disallowed | Required approach |
+
+The consolidated payload generally embeds the first skills page (about 20 items). The service attempts Voyager pagination when a larger total is reported, but the tested deep endpoints currently fail (`/profileSkills` with `400`, legacy `/skills` with `410`). In that case, it keeps the embedded page and exposes the full available count through `skills_total`.
+
+## Production trade-offs
+
+### Authentication model
+
+The public API deliberately does not accept per-request `X-Li-At` or `X-JSessionID` headers. Sending a reviewer's personal LinkedIn session through a third-party host creates account-lock and unusual-IP risk.
+
+Instead, the deployment reads one owner-controlled session from environment variables. If that session expires, reviewers can run the API locally so their cookies never leave their machine.
+
+### Limitations
+
+- **Session fragility:** `li_at` and `JSESSIONID` can expire or be invalidated after a logout or IP change.
+- **Single-account limits:** one LinkedIn session backs the hosted traffic. The TTL cache and per-IP rate limiter reduce upstream load.
+- **Skills pagination:** follow-up Voyager skills endpoints may be unavailable; partial results are returned safely when enrichment fails.
+- **Schema drift:** LinkedIn can change `$type` names or decoration IDs. Update `app/config.py` if upstream responses change.
+- **Profile visibility:** results are limited to profiles visible to the authenticated LinkedIn account.
+- **Terms:** use the service responsibly and in accordance with LinkedIn's Terms of Service.
+
+## Testing
 
 ```bash
 pytest -v
 ```
 
----
+The test suite covers URL normalization, response parsing, GET and POST routes, upstream error mapping, caching, and skills pagination fallbacks.
 
-## Production Trade-offs & Limitations
+## License
 
-### Auth model — what we rejected
-
-We considered **per-request session cookies**: clients would send their own `X-Li-At` + `X-JSessionID` headers so the server holds no central account and never signs anyone out.
-
-**We decided against it.** Routing a reviewer’s personal LinkedIn session through a third-party API is a ban risk — LinkedIn can flag the unusual IP / client fingerprint and lock or restrict that account. For a hiring challenge, that is an unacceptable ask of the reviewer.
-
-**What we ship instead:** server-side env cookies only (`LI_AT` / `JSESSIONID`). Owner/private use; if the hosted session dies, reviewers spin up local with *their* cookies (see [Notice](#notice-for-reviewers--session-expiry--60s-fallback)) — credentials never leave their machine via the public demo.
-
-### Other limits
-
-- **Session cookie fragility** — `li_at` / `JSESSIONID` expire or invalidate on IP/logout; refresh env vars (or use the local fallback above). Never commit cookies.
-- **Single-account rate limits + TTL cache** — one LinkedIn session backs all traffic; in-memory cache (`CACHE_TTL_SECONDS`, default 3600) and per-IP rate limiting (`RATE_LIMIT`, default `10/minute`) protect it.
-- **Skills pagination boundary** — Voyager returns the first skills page (~20); `skills_total` reports the full count when available. Remaining skills live only under flagship-web SDUI; Voyager follow-up pagination is gone.
-- **Schema / decoration drift** — `$type` names and `decorationId` can change; update `app/config.py` if responses empty out.
-- **Visibility** — only profiles visible to the authenticated account are returned. Use responsibly w.r.t. LinkedIn ToS.
-
----
-
-## Architecture (one glance)
-
-```
-Client → GET|POST /api/profile → URL normalizer → TTL cache
-  → Voyager client (Rest.li 2.0 + retry) → parser (included[] by $type)
-  → ProfileResponse
-```
-
-| Layer | Role |
-|-------|------|
-| `voyager_client` | Cookies + CSRF, `x-restli-protocol-version: 2.0.0`, retry on transient 5xx |
-| `profile_parser` | Bucket `included[]` by `$type`, resolve photo/cover vector URNs → CDN |
-| `profile_service` | Normalize → cache → fetch → parse |
-
-**Voyager call:**
-
-```
-GET /voyager/api/identity/dash/profiles
-  ?q=memberIdentity&memberIdentity={slug}
-  &decorationId=com.linkedin.voyager.dash.deco.identity.profile.FullProfileWithEntities-91
-```
-
-MIT — credentials stay in env / host secrets only.
+MIT. Keep LinkedIn credentials in local environment files or host secrets only.

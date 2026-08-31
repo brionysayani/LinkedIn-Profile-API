@@ -66,8 +66,11 @@ const els = {
   submitBtn: document.getElementById("submit-btn"),
   btnLabel: document.getElementById("btn-label"),
   btnSpinner: document.getElementById("btn-spinner"),
+  btnArrow: document.getElementById("btn-arrow"),
+  sampleBtn: document.getElementById("sample-btn"),
   apiHint: document.getElementById("api-hint"),
   errorBanner: document.getElementById("error-banner"),
+  featurePreview: document.getElementById("feature-preview"),
   result: document.getElementById("result"),
   cover: document.getElementById("cover"),
   avatar: document.getElementById("avatar"),
@@ -93,7 +96,11 @@ const els = {
   fetchedAt: document.getElementById("fetched-at"),
 };
 
-els.apiHint.textContent = `API: ${API_BASE}`;
+try {
+  els.apiHint.textContent = `API: ${new URL(API_BASE).host}`;
+} catch {
+  els.apiHint.textContent = `API: ${API_BASE}`;
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -130,16 +137,20 @@ function setLoading(loading) {
   els.submitBtn.disabled = loading;
   els.btnLabel.textContent = loading ? "Fetching…" : "Fetch profile";
   els.btnSpinner.classList.toggle("hidden", !loading);
+  els.btnArrow.classList.toggle("hidden", loading);
+  els.input.setAttribute("aria-busy", String(loading));
 }
 
 function showError(message) {
   els.errorBanner.textContent = message;
   els.errorBanner.classList.remove("hidden");
+  els.input.setAttribute("aria-invalid", "true");
 }
 
 function hideError() {
   els.errorBanner.classList.add("hidden");
   els.errorBanner.textContent = "";
+  els.input.removeAttribute("aria-invalid");
 }
 
 function friendlyError(status, body) {
@@ -237,13 +248,14 @@ function renderPositions(positions) {
       const employment = escapeHtml(p.employment_type || "");
       const meta = [dates, location, employment].filter(Boolean).join(" · ");
       const desc = p.description
-        ? `<p class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">${escapeHtml(p.description)}</p>`
+        ? `<p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">${escapeHtml(p.description)}</p>`
         : "";
       return `
-        <article class="border-b border-slate-100 pb-5 last:border-0 last:pb-0">
-          <h4 class="font-semibold text-slate-900">${title}</h4>
-          ${company ? `<p class="text-sm text-slate-700">${company}</p>` : ""}
-          ${meta ? `<p class="mt-0.5 text-xs text-slate-500">${meta}</p>` : ""}
+        <article class="relative border-b border-slate-100 pb-6 pl-6 last:border-0 last:pb-0">
+          <span class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-brand-500 ring-4 ring-brand-50" aria-hidden="true"></span>
+          <h4 class="font-bold text-slate-900">${title}</h4>
+          ${company ? `<p class="mt-0.5 text-sm font-medium text-slate-700">${company}</p>` : ""}
+          ${meta ? `<p class="mt-1 text-xs font-medium text-slate-400">${meta}</p>` : ""}
           ${desc}
         </article>
       `;
@@ -270,13 +282,14 @@ function renderEducations(educations) {
         ? `<p class="mt-1 text-sm text-slate-600">${escapeHtml(e.activities)}</p>`
         : "";
       const desc = e.description
-        ? `<p class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">${escapeHtml(e.description)}</p>`
+        ? `<p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">${escapeHtml(e.description)}</p>`
         : "";
       return `
-        <article class="border-b border-slate-100 pb-5 last:border-0 last:pb-0">
-          <h4 class="font-semibold text-slate-900">${school}</h4>
-          ${degreeBits ? `<p class="text-sm text-slate-700">${escapeHtml(degreeBits)}</p>` : ""}
-          ${meta ? `<p class="mt-0.5 text-xs text-slate-500">${meta}</p>` : ""}
+        <article class="relative border-b border-slate-100 pb-6 pl-6 last:border-0 last:pb-0">
+          <span class="absolute left-0 top-1.5 h-2.5 w-2.5 rounded-full bg-indigo-500 ring-4 ring-indigo-50" aria-hidden="true"></span>
+          <h4 class="font-bold text-slate-900">${school}</h4>
+          ${degreeBits ? `<p class="mt-0.5 text-sm text-slate-700">${escapeHtml(degreeBits)}</p>` : ""}
+          ${meta ? `<p class="mt-1 text-xs font-medium text-slate-400">${meta}</p>` : ""}
           ${activities}
           ${desc}
         </article>
@@ -296,14 +309,14 @@ function renderSkills(skills, skillsTotal) {
   const chips = skills
     .map(
       (s) =>
-        `<span class="rounded-full bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700">${escapeHtml(s.name)}</span>`,
+        `<span class="rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700">${escapeHtml(s.name)}</span>`,
     )
     .join("");
 
   let more = "";
   if (typeof skillsTotal === "number" && skillsTotal > skills.length) {
     const remaining = skillsTotal - skills.length;
-    more = `<span class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">+${remaining} more</span>`;
+    more = `<span class="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1.5 text-xs font-semibold text-slate-600">+${remaining} more</span>`;
   }
 
   els.skills.innerHTML = chips + more;
@@ -320,8 +333,8 @@ function renderCertifications(certs) {
     .map((c) => {
       const name = escapeHtml(c.name || "Certification");
       const title = c.url
-        ? `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-500 hover:underline">${name}</a>`
-        : `<span class="font-semibold text-slate-900">${name}</span>`;
+        ? `<a href="${escapeHtml(c.url)}" target="_blank" rel="noopener noreferrer" class="text-sm font-bold text-brand-600 hover:underline">${name} ↗</a>`
+        : `<span class="text-sm font-bold text-slate-900">${name}</span>`;
       const authority = c.authority
         ? `<p class="text-sm text-slate-700">${escapeHtml(c.authority)}</p>`
         : "";
@@ -353,7 +366,7 @@ function renderLanguages(languages) {
       const proficiency = l.proficiency
         ? `<span class="text-slate-500"> — ${escapeHtml(l.proficiency)}</span>`
         : "";
-      return `<p class="text-sm text-slate-800">${name}${proficiency}</p>`;
+      return `<p class="rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800">${name}${proficiency}</p>`;
     })
     .join("");
 
@@ -370,7 +383,7 @@ function renderTreasury(items) {
     .map((t) => {
       const title = escapeHtml(t.title || t.url || "Media");
       const link = t.url
-        ? `<a href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer" class="font-medium text-brand-500 hover:underline">${title}</a>`
+        ? `<a href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer" class="font-semibold text-brand-600 hover:underline">${title} ↗</a>`
         : `<span class="font-medium text-slate-900">${title}</span>`;
       const kind = t.kind
         ? `<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium uppercase tracking-wide text-slate-600">${escapeHtml(t.kind)}</span>`
@@ -409,11 +422,16 @@ function renderProfile(profile) {
   }
 
   els.result.classList.remove("hidden");
+  els.featurePreview.classList.add("hidden");
+  requestAnimationFrame(() => {
+    els.result.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 async function fetchProfile(url) {
   hideError();
   els.result.classList.add("hidden");
+  els.featurePreview.classList.remove("hidden");
   setLoading(true);
 
   try {
@@ -449,4 +467,11 @@ els.form.addEventListener("submit", (event) => {
     return;
   }
   fetchProfile(url);
+});
+
+els.sampleBtn.addEventListener("click", () => {
+  els.input.value = "https://www.linkedin.com/in/shreyan-bagchi/";
+  hideError();
+  els.input.focus();
+  els.input.select();
 });
