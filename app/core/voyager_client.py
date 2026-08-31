@@ -12,6 +12,7 @@ from tenacity import (
 
 from app.config import Settings, get_settings
 from app.core.errors import (
+    ConfigurationError,
     ForbiddenError,
     ProfileNotFoundError,
     RateLimitError,
@@ -33,13 +34,27 @@ class VoyagerClient:
         self._client: httpx.AsyncClient | None = None
 
     def _build_headers(self) -> dict[str, str]:
-        jsessionid = self.settings.jsessionid.strip('"')
+        credentials = {
+            "LI_AT": self.settings.li_at,
+            "JSESSIONID": self.settings.jsessionid,
+            "USER_AGENT": self.settings.user_agent,
+        }
+        missing = [name for name, value in credentials.items() if not value or not value.strip()]
+        if missing:
+            raise ConfigurationError(
+                "LinkedIn credentials are not configured",
+                f"Missing server environment variables: {', '.join(missing)}",
+            )
+
+        li_at = self.settings.li_at or ""
+        jsessionid = (self.settings.jsessionid or "").strip('"')
+        user_agent = self.settings.user_agent or ""
         return {
-            "Cookie": f'li_at={self.settings.li_at}; JSESSIONID="{jsessionid}"',
+            "Cookie": f'li_at={li_at}; JSESSIONID="{jsessionid}"',
             "csrf-token": jsessionid,
             "x-restli-protocol-version": "2.0.0",
             "Accept": "application/vnd.linkedin.normalized+json+2.1",
-            "User-Agent": self.settings.user_agent,
+            "User-Agent": user_agent,
             "x-li-lang": "en_US",
         }
 

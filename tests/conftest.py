@@ -1,6 +1,6 @@
 import os
 
-# Set test env before app imports (Settings validates at import time via routes)
+# Set default credentials before app imports.
 os.environ.setdefault("LI_AT", "test_li_at_value")
 os.environ.setdefault("JSESSIONID", "ajax:1234567890")
 os.environ.setdefault("USER_AGENT", "TestAgent/1.0")

@@ -11,9 +11,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    li_at: str = Field(..., alias="LI_AT")
-    jsessionid: str = Field(..., alias="JSESSIONID")
-    user_agent: str = Field(..., alias="USER_AGENT")
+    li_at: str | None = Field(default=None, alias="LI_AT")
+    jsessionid: str | None = Field(default=None, alias="JSESSIONID")
+    user_agent: str | None = Field(default=None, alias="USER_AGENT")
 
     cache_ttl_seconds: int = Field(default=3600, alias="CACHE_TTL_SECONDS")
     rate_limit: str = Field(default="10/minute", alias="RATE_LIMIT")

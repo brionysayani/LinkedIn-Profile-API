@@ -29,6 +29,7 @@ const MONTHS = [
 ];
 
 const ERROR_MESSAGES = {
+  configuration_error: "The API credentials are not configured in Vercel yet.",
   invalid_url: "That doesn’t look like a valid LinkedIn profile URL.",
   unauthorized: "Session cookies expired. Update LI_AT / JSESSIONID on the API server.",
   forbidden: "LinkedIn denied access for this request.",

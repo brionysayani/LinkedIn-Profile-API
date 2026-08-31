@@ -12,6 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.api.routes import limiter, router
 from app.config import get_settings
 from app.core.errors import (
+    ConfigurationError,
     ForbiddenError,
     InvalidURLError,
     LinkedInProfileAPIError,
@@ -62,6 +63,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(InvalidURLError)
     async def invalid_url_handler(_: Request, exc: InvalidURLError) -> JSONResponse:
         return _error_response(400, "invalid_url", exc.detail)
+
+    @app.exception_handler(ConfigurationError)
+    async def configuration_handler(_: Request, exc: ConfigurationError) -> JSONResponse:
+        return _error_response(503, "configuration_error", exc.detail)
 
     @app.exception_handler(UnauthorizedError)
     async def unauthorized_handler(_: Request, exc: UnauthorizedError) -> JSONResponse:

@@ -7,6 +7,10 @@ class LinkedInProfileAPIError(Exception):
         super().__init__(message)
 
 
+class ConfigurationError(LinkedInProfileAPIError):
+    """Raised when required server configuration is missing."""
+
+
 class InvalidURLError(LinkedInProfileAPIError):
     """Raised when the input URL or slug is invalid."""
 

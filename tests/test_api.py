@@ -129,6 +129,20 @@ async def test_web_ui_is_served_by_fastapi(client):
 
 
 @pytest.mark.asyncio
+async def test_missing_credentials_do_not_crash_app(client, monkeypatch):
+    for name in ("LI_AT", "JSESSIONID", "USER_AGENT"):
+        monkeypatch.delenv(name, raising=False)
+    get_settings.cache_clear()
+
+    health = await client.get("/health")
+    response = await client.get("/api/profile", params={"url": "john-doe"})
+
+    assert health.status_code == 200
+    assert response.status_code == 503
+    assert response.json()["error"] == "configuration_error"
+
+
+@pytest.mark.asyncio
 @respx.mock
 async def test_cache_hit(client, voyager_url, sample_payload):
     cache = InMemoryTTLCache()

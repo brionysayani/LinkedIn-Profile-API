@@ -9,13 +9,13 @@ Fetch structured LinkedIn profile data through LinkedIn's authenticated Voyager 
 
 | Resource | URL |
 | --- | --- |
-| Web demo | [linked-in-profile-api-livid.vercel.app](https://linked-in-profile-api-livid.vercel.app/) |
-| Interactive API docs | [linked-in-profile-api-livid.vercel.app/docs](https://linked-in-profile-api-livid.vercel.app/docs) |
-| Health check | [linked-in-profile-api-livid.vercel.app/health](https://linked-in-profile-api-livid.vercel.app/health) |
+| Web demo | [linked-in-profile-api.vercel.app](https://linked-in-profile-api.vercel.app/) |
+| Interactive API docs | [linked-in-profile-api.vercel.app/docs](https://linked-in-profile-api.vercel.app/docs) |
+| Health check | [linked-in-profile-api.vercel.app/health](https://linked-in-profile-api.vercel.app/health) |
 
 ## Reviewer quick start
 
-1. Open the [web demo](https://linked-in-profile-api-livid.vercel.app/).
+1. Open the [web demo](https://linked-in-profile-api.vercel.app/).
 2. Paste a LinkedIn profile URL or vanity slug.
 3. Select **Fetch profile** to display the normalized result.
 
@@ -24,7 +24,7 @@ The hosted API uses server-side `LI_AT` and `JSESSIONID` credentials. LinkedIn c
 Then point the deployed UI to the local API:
 
 ```text
-https://linked-in-profile-api-livid.vercel.app/?api=http://localhost:8000
+https://linked-in-profile-api.vercel.app/?api=http://localhost:8000
 ```
 
 Credentials remain on the reviewer's machine and are never sent to the public demo API.
@@ -50,13 +50,13 @@ Credentials remain on the reviewer's machine and are never sent to the public de
 GET example:
 
 ```bash
-curl "https://linked-in-profile-api-livid.vercel.app/api/profile?url=https://www.linkedin.com/in/shreyan-bagchi/"
+curl "https://linked-in-profile-api.vercel.app/api/profile?url=https://www.linkedin.com/in/shreyan-bagchi/"
 ```
 
 POST example:
 
 ```bash
-curl -X POST "https://linked-in-profile-api-livid.vercel.app/api/profile" \
+curl -X POST "https://linked-in-profile-api.vercel.app/api/profile" \
   -H "Content-Type: application/json" \
   -d '{"url":"shreyan-bagchi"}'
 ```
@@ -144,6 +144,7 @@ All application errors use this shape:
 | `403` | `forbidden` | LinkedIn denied access to the profile. |
 | `404` | `not_found` | The profile does not exist or is unavailable. |
 | `429` | `rate_limit_exceeded` | The API or LinkedIn rate limit was reached. |
+| `503` | `configuration_error` | Required LinkedIn environment variables are missing. |
 | `502` | `upstream_error` | LinkedIn returned a server or network error. |
 
 ### Health check
