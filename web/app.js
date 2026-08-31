@@ -471,7 +471,7 @@ els.form.addEventListener("submit", (event) => {
 });
 
 els.sampleBtn.addEventListener("click", () => {
-  els.input.value = "https://www.linkedin.com/in/shreyan-bagchi/";
+  els.input.value = "https://www.linkedin.com/in/briony-sayani/";
   hideError();
   els.input.focus();
   els.input.select();
