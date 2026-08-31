@@ -4,7 +4,6 @@ from pathlib import Path
 from app.models.profile import ProfileResponse
 from app.parsers.profile_parser import parse_profile_response, skills_paging_info
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 ROOT = Path(__file__).resolve().parents[1]
 
