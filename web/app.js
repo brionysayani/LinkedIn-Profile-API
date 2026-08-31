@@ -9,8 +9,8 @@
  * Local: open index.html?api=http://localhost:8000
  */
 
-const DEFAULT_API_BASE = "https://linkedin-profile-api-bsa2.onrender.com";
-const STORAGE_KEY = "linkedin_profile_api_base";
+const DEFAULT_API_BASE = window.location.origin;
+const STORAGE_KEY = "profile_lens_api_base";
 
 const MONTHS = [
   "",

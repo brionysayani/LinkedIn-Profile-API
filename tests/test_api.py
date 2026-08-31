@@ -118,6 +118,17 @@ async def test_health(client):
 
 
 @pytest.mark.asyncio
+async def test_web_ui_is_served_by_fastapi(client):
+    page = await client.get("/")
+    script = await client.get("/app.js")
+
+    assert page.status_code == 200
+    assert "Profile Lens" in page.text
+    assert script.status_code == 200
+    assert "profile_lens_api_base" in script.text
+
+
+@pytest.mark.asyncio
 @respx.mock
 async def test_cache_hit(client, voyager_url, sample_payload):
     cache = InMemoryTTLCache()

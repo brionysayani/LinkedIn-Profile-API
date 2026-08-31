@@ -10,21 +10,14 @@ Fetch structured LinkedIn profile data through LinkedIn's authenticated Voyager 
 | Resource | URL |
 | --- | --- |
 | Web demo | [linked-in-profile-api-livid.vercel.app](https://linked-in-profile-api-livid.vercel.app/) |
-| Interactive API docs | [linkedin-profile-api-bsa2.onrender.com/docs](https://linkedin-profile-api-bsa2.onrender.com/docs) |
-| Health check | [linkedin-profile-api-bsa2.onrender.com/health](https://linkedin-profile-api-bsa2.onrender.com/health) |
-
-The Render free tier may need 30-60 seconds to wake up. Warm it before testing:
-
-```bash
-curl https://linkedin-profile-api-bsa2.onrender.com/health
-# {"status":"ok"}
-```
+| Interactive API docs | [linked-in-profile-api-livid.vercel.app/docs](https://linked-in-profile-api-livid.vercel.app/docs) |
+| Health check | [linked-in-profile-api-livid.vercel.app/health](https://linked-in-profile-api-livid.vercel.app/health) |
 
 ## Reviewer quick start
 
 1. Open the [web demo](https://linked-in-profile-api-livid.vercel.app/).
 2. Paste a LinkedIn profile URL or vanity slug.
-3. Select **Fetch profile** to render the normalized result.
+3. Select **Fetch profile** to display the normalized result.
 
 The hosted API uses server-side `LI_AT` and `JSESSIONID` credentials. LinkedIn can invalidate a session because of expiry, logout, or an IP change. If the hosted API returns `401 Unauthorized`, [run the API locally](#run-locally) with your own session values; no source changes or Vercel redeploy are needed.
 
@@ -57,13 +50,13 @@ Credentials remain on the reviewer's machine and are never sent to the public de
 GET example:
 
 ```bash
-curl "https://linkedin-profile-api-bsa2.onrender.com/api/profile?url=https://www.linkedin.com/in/shreyan-bagchi/"
+curl "https://linked-in-profile-api-livid.vercel.app/api/profile?url=https://www.linkedin.com/in/shreyan-bagchi/"
 ```
 
 POST example:
 
 ```bash
-curl -X POST "https://linkedin-profile-api-bsa2.onrender.com/api/profile" \
+curl -X POST "https://linked-in-profile-api-livid.vercel.app/api/profile" \
   -H "Content-Type: application/json" \
   -d '{"url":"shreyan-bagchi"}'
 ```
@@ -226,6 +219,18 @@ docker run -p 8000:8000 \
   linkedin-profile-api
 ```
 
+## Deploy on Vercel
+
+One Vercel project serves both the static web UI and the FastAPI application.
+
+1. Import this repository into Vercel.
+2. Set the project's **Root Directory** to the repository root, not `web`.
+3. Let Vercel detect the FastAPI application in `app/main.py`, or set `app/main.py` as the Python entry point if explicit configuration is required.
+4. Add `LI_AT`, `JSESSIONID`, and `USER_AGENT` under **Project Settings > Environment Variables**. Add any optional variables from the [configuration table](#configuration) when needed.
+5. Deploy the project.
+
+After deployment, the same domain exposes the web UI at `/`, Swagger UI at `/docs`, the health check at `/health`, and profile requests at `/api/profile`.
+
 ## Configuration
 
 | Variable | Required | Default | Purpose |
@@ -273,8 +278,8 @@ LinkedIn's newer `/flagship-web/...` profile surfaces use Server-Driven UI/RSC F
 
 | | Headless browser | Direct Voyager REST |
 | --- | --- | --- |
-| Transport | Rendered DOM via Playwright/Puppeteer | Authenticated JSON over `httpx` |
-| Typical latency | Browser startup plus page rendering | Usually under 300 ms for the core request |
+| Transport | Browser DOM via Playwright/Puppeteer | Authenticated JSON over `httpx` |
+| Typical latency | Browser startup plus page load | Usually under 300 ms for the core request |
 | Main coupling | CSS selectors and DOM structure | `$type` entity schema and decoration ID |
 | Challenge fit | Disallowed | Required approach |
 
