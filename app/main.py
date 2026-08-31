@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.linkedin import (
@@ -18,6 +21,12 @@ class ProfileRequest(BaseModel):
 
 
 app = FastAPI(title="LinkedIn Profile API", version="1.0.0")
+PUBLIC_DIR = Path(__file__).parent.parent / "public"
+
+
+@app.get("/", include_in_schema=False)
+async def home() -> FileResponse:
+    return FileResponse(PUBLIC_DIR / "index.html")
 
 
 @app.post("/profile")

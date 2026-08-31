@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile Lens</title>
+  <style>
+    :root { --ink:#152033; --muted:#64748b; --line:#e2e8f0; --blue:#1769aa; --deep:#0d2744; --soft:#f5f9fd; --error:#b42318; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:linear-gradient(120deg,#f6fbff 0%,#fff 52%,#eef7ff 100%); }
+    .shell { width:min(1080px,calc(100% - 32px)); margin:auto; }
+    header { padding:28px 0 22px; display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:-.03em; font-size:20px; }
+    .mark { width:32px; height:32px; border-radius:9px; background:var(--blue); color:white; display:grid; place-items:center; font-weight:900; }
+    .tag { color:var(--muted); font-size:14px; }
+    main { padding:24px 0 52px; }
+    .intro { max-width:680px; margin-bottom:26px; }
+    h1 { margin:0 0 10px; font-size:clamp(32px,5vw,50px); letter-spacing:-.05em; line-height:1.03; }
+    .intro p { color:var(--muted); font-size:17px; line-height:1.55; margin:0; }
+    .search { background:white; border:1px solid var(--line); box-shadow:0 20px 60px #15649c12; border-radius:18px; padding:20px; }
+    label { font-weight:700; font-size:14px; display:block; margin-bottom:8px; }
+    .row { display:flex; gap:10px; }
+    input { flex:1; min-width:0; border:1px solid #cbd5e1; border-radius:10px; padding:13px 14px; font:inherit; outline:none; }
+    input:focus { border-color:var(--blue); box-shadow:0 0 0 3px #1769aa20; }
+    button { border:0; border-radius:10px; padding:13px 20px; font:700 15px inherit; color:#fff; background:var(--blue); cursor:pointer; white-space:nowrap; }
+    button:hover { background:#0d5b99; } button:disabled { opacity:.65; cursor:wait; }
+    .hint { margin:10px 0 0; color:var(--muted); font-size:13px; }
+    .notice { margin:18px 0; padding:13px 15px; border-radius:10px; background:#fff9e7; color:#7a5600; border:1px solid #f4dda0; font-size:14px; }
+    .notice code { background:#ffedbd; padding:1px 4px; border-radius:4px; }
+    #status { min-height:24px; font-size:14px; margin:16px 0; color:var(--muted); }
+    #status.error { color:var(--error); font-weight:600; }
+    #result { display:none; }
+    .profile { display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:center; padding:22px; border-radius:18px; color:white; background:linear-gradient(135deg,var(--deep),#164f7d); }
+    .avatar { width:76px; height:76px; border-radius:50%; object-fit:cover; background:#dbeafe; display:grid; place-items:center; color:#315f86; font-size:26px; font-weight:800; }
+    .profile h2 { margin:0; font-size:26px; letter-spacing:-.03em; } .profile p { margin:5px 0 0; color:#d9eafb; } .profile .location { font-size:14px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:16px; }
+    .card { background:white; border:1px solid var(--line); border-radius:14px; padding:18px; }
+    .card.full { grid-column:1/-1; } h3 { font-size:14px; text-transform:uppercase; letter-spacing:.08em; color:#52708d; margin:0 0 12px; }
+    .about { line-height:1.6; color:#334155; white-space:pre-wrap; margin:0; }
+    .item { border-top:1px solid var(--line); padding:12px 0; } .item:first-of-type { border-top:0; padding-top:0; }
+    .item strong { display:block; } .item span { color:var(--muted); font-size:14px; display:block; margin-top:3px; } .item p { color:#475569; font-size:14px; line-height:1.45; margin:7px 0 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }.chip { padding:7px 10px; background:var(--soft); color:#28547a; border-radius:99px; font-size:14px; }
+    details { margin-top:16px; } summary { cursor:pointer; color:#315f86; font-weight:700; } pre { overflow:auto; background:#0d1b2a; color:#d9f0ff; padding:16px; border-radius:12px; font-size:12px; }
+    .empty { color:var(--muted); font-size:14px; margin:0; }
+    @media (max-width:680px) { header .tag { display:none; } .row { flex-direction:column; } button { width:100%; } .grid { grid-template-columns:1fr; } .card.full { grid-column:auto; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header><div class="brand"><div class="mark">P</div>Profile Lens</div><div class="tag">LinkedIn profile lookup</div></header>
+    <main>
+      <section class="intro"><h1>See a profile, clearly.</h1><p>Paste a public LinkedIn profile link to retrieve the information visible to your signed-in LinkedIn account.</p></section>
+      <section class="search">
+        <label for="url">LinkedIn profile URL</label>
+        <div class="row"><input id="url" type="url" placeholder="https://www.linkedin.com/in/example/" autocomplete="url"><button id="submit" type="button">Get profile</button></div>
+        <p class="hint">Only public profile links in the <code>/in/</code> format are accepted.</p>
+      </section>
+      <div class="notice"><strong>Before your first search:</strong> add <code>LINKEDIN_LI_AT</code> and <code>LINKEDIN_JSESSIONID</code> to your local <code>.env</code> file, then restart the server.</div>
+      <p id="status" aria-live="polite">Ready when you are.</p>
+      <section id="result">
+        <div class="profile"><div id="avatar" class="avatar">?</div><div><h2 id="name">Profile</h2><p id="headline"></p><p id="location" class="location"></p></div></div>
+        <div class="grid">
+          <article class="card full"><h3>About</h3><p id="about" class="about"></p></article>
+          <article class="card"><h3>Experience</h3><div id="experience"></div></article>
+          <article class="card"><h3>Education</h3><div id="education"></div></article>
+          <article class="card"><h3>Skills</h3><div id="skills" class="chips"></div></article>
+          <article class="card"><h3>Certifications</h3><div id="certifications"></div></article>
+          <article class="card"><h3>Languages</h3><div id="languages"></div></article>
+        </div>
+        <details><summary>View raw JSON</summary><pre id="json"></pre></details>
+      </section>
+    </main>
+  </div>
+  <script>
+    const byId = id => document.getElementById(id);
+    const text = value => value || "Not available";
+    const empty = () => '<p class="empty">Not available</p>';
+    const renderItems = (id, items, formatter) => byId(id).innerHTML = items?.length ? items.map(formatter).join('') : empty();
+    const escape = value => String(value || '').replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    function showProfile(data) {
+      byId('name').textContent = text(data.name); byId('headline').textContent = data.headline || '';
+      byId('location').textContent = data.location || ''; byId('about').textContent = text(data.about);
+      const avatar = byId('avatar'); avatar.innerHTML = data.profile_image ? `<img class="avatar" src="${escape(data.profile_image)}" alt="">` : escape((data.name || '?').slice(0,1));
+      renderItems('experience', data.experience, item => `<div class="item"><strong>${escape(item.title)}</strong><span>${escape(item.company)}${item.location ? ' · ' + escape(item.location) : ''}</span><span>${escape(item.start_date)}${item.end_date ? ' — ' + escape(item.end_date) : ''}</span>${item.description ? `<p>${escape(item.description)}</p>` : ''}</div>`);
+      renderItems('education', data.education, item => `<div class="item"><strong>${escape(item.school)}</strong><span>${escape(item.degree)}${item.field_of_study ? ' · ' + escape(item.field_of_study) : ''}</span><span>${escape(item.start_date)}${item.end_date ? ' — ' + escape(item.end_date) : ''}</span></div>`);
+      byId('skills').innerHTML = data.skills?.length ? data.skills.map(skill => `<span class="chip">${escape(skill)}</span>`).join('') : empty();
+      renderItems('certifications', data.certifications, item => `<div class="item"><strong>${escape(item.name)}</strong><span>${escape(item.issuer)}${item.issue_date ? ' · ' + escape(item.issue_date) : ''}</span></div>`);
+      renderItems('languages', data.languages, item => `<div class="item"><strong>${escape(item.name)}</strong><span>${escape(item.proficiency)}</span></div>`);
+      byId('json').textContent = JSON.stringify(data, null, 2); byId('result').style.display = 'block';
+    }
+    async function submit() {
+      const url = byId('url').value.trim(), button = byId('submit'), status = byId('status');
+      if (!url) { status.textContent = 'Enter a LinkedIn profile URL first.'; status.className = 'error'; return; }
+      button.disabled = true; button.textContent = 'Retrieving…'; status.className = ''; status.textContent = 'Retrieving profile information…'; byId('result').style.display = 'none';
+      try {
+        const response = await fetch('/profile', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url})});
+        const data = await response.json();
+        if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'The request could not be completed.');
+        showProfile(data); status.textContent = 'Profile retrieved.';
+      } catch (error) { status.textContent = error.message; status.className = 'error'; }
+      finally { button.disabled = false; button.textContent = 'Get profile'; }
+    }
+    byId('submit').addEventListener('click', submit); byId('url').addEventListener('keydown', event => { if (event.key === 'Enter') submit(); });
+  </script>
+</body>
+</html>
