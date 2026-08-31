@@ -55,7 +55,7 @@
         <div class="row"><input id="url" type="url" placeholder="https://www.linkedin.com/in/example/" autocomplete="url"><button id="submit" type="button">Get profile</button></div>
         <p class="hint">Only public profile links in the <code>/in/</code> format are accepted.</p>
       </section>
-      <div class="notice"><strong>Before your first search:</strong> add <code>LINKEDIN_LI_AT</code> and <code>LINKEDIN_JSESSIONID</code> to your local <code>.env</code> file, then restart the server.</div>
+      <div class="notice"><strong>Before your first search:</strong> configure <code>LINKEDIN_LI_AT</code> and <code>LINKEDIN_JSESSIONID</code> as environment variables. Use a local <code>.env</code> file when testing on your computer, or add them in your deployment provider’s environment-variable settings when hosted.</div>
       <p id="status" aria-live="polite">Ready when you are.</p>
       <section id="result">
         <div class="profile"><div id="avatar" class="avatar">?</div><div><h2 id="name">Profile</h2><p id="headline"></p><p id="location" class="location"></p></div></div>
